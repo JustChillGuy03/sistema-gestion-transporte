@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="TransporteEmpresarial.API/TransporteEmpresarial.API.csproj" />
+  <Project Path="TransporteEmpresarial.Application/TransporteEmpresarial.Application.csproj" />
   <Project Path="TransporteEmpresarial.Domain/TransporteEmpresarial.Domain.csproj" />
   <Project Path="TransporteEmpresarial.Infrastructure/TransporteEmpresarial.Infrastructure.csproj" />
 </Solution>
