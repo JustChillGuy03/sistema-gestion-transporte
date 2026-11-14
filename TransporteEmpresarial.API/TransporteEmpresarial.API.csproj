@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\TransporteEmpresarial.Application\TransporteEmpresarial.Application.csproj" />
     <ProjectReference Include="..\TransporteEmpresarial.Infrastructure\TransporteEmpresarial.Infrastructure.csproj" />
   </ItemGroup>
 

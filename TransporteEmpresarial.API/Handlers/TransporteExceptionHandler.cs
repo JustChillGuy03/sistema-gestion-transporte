@@ -4,8 +4,9 @@ using TransporteEmpresarial.Infrastructure.Exceptions;
 namespace TransporteEmpresarial.API.Handlers
 {
     /// <summary>
-    /// Convierte las excepciones de negocio de los repositorios en respuestas HTTP
-    /// con formato ProblemDetails. Cualquier otra excepción sigue siendo un 500.
+    /// Respaldo: convierte en ProblemDetails (400/404/409) una excepción de negocio de los
+    /// repositorios que llegue a la API sin pasar por un servicio. Los servicios ya las
+    /// capturan y devuelven un ServiceResult. Cualquier otra excepción sigue siendo un 500.
     /// </summary>
     public sealed class TransporteExceptionHandler : IExceptionHandler
     {

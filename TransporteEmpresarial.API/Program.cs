@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using TransporteEmpresarial.API.Handlers;
+using TransporteEmpresarial.Application.Contract;
+using TransporteEmpresarial.Application.Service;
 using TransporteEmpresarial.Infrastructure.Context;
 using TransporteEmpresarial.Infrastructure.Extensions;
 
@@ -16,7 +18,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // Documento OpenAPI (disponible en /openapi/v1.json)
 builder.Services.AddOpenApi();
 
-// Errores con formato ProblemDetails; las excepciones de negocio se traducen a 400/404/409
+// Errores con formato ProblemDetails. Los servicios devuelven sus errores en un ServiceResult;
+// el manejador queda como respaldo por si una excepción de negocio llega hasta la API.
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<TransporteExceptionHandler>();
 
@@ -24,6 +27,12 @@ builder.Services.AddExceptionHandler<TransporteExceptionHandler>();
 var cadenaConexion = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Falta la cadena de conexión 'DefaultConnection' en appsettings.json.");
 builder.Services.AddInfrastructure(cadenaConexion);
+
+// Capa de servicios: lógica de negocio y validación de cada campo antes de llegar al repositorio
+builder.Services.AddScoped<IRutaService, RutaService>();
+builder.Services.AddScoped<IEmpleadoService, EmpleadoService>();
+builder.Services.AddScoped<IVehiculoService, VehiculoService>();
+builder.Services.AddScoped<IViajeService, ViajeService>();
 
 var app = builder.Build();
 

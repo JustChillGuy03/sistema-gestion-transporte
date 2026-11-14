@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using TransporteEmpresarial.Infrastructure.Extensions;
-using TransporteEmpresarial.Infrastructure.Interfaces;
+using TransporteEmpresarial.Application.Contract;
+using TransporteEmpresarial.Application.Dtos.Ruta;
 using TransporteEmpresarial.Infrastructure.Models;
 
 namespace TransporteEmpresarial.API.Controllers
@@ -10,73 +10,57 @@ namespace TransporteEmpresarial.API.Controllers
     [Produces("application/json")]
     public class RutasController : TransporteControllerBase
     {
-        private readonly IRutaRepository _repositorio;
+        private readonly IRutaService _servicio;
 
-        public RutasController(IRutaRepository repositorio)
+        public RutasController(IRutaService servicio)
         {
-            _repositorio = repositorio;
+            _servicio = servicio;
         }
 
         // GET: api/rutas
         [HttpGet]
         public async Task<ActionResult<List<RutaModel>>> GetRutas()
         {
-            var rutas = await _repositorio.GetAllAsync();
-            return rutas.Select(r => r.ToModel()).ToList();
+            return Responder(await _servicio.GetAllAsync());
         }
 
         // GET: api/rutas/5
         [HttpGet("{id:int}")]
         public async Task<ActionResult<RutaModel>> GetRuta(int id)
         {
-            var ruta = await _repositorio.GetByIdAsync(id);
-            if (ruta == null)
-                return NoEncontrado($"No existe la ruta {id}.");
-
-            return ruta.ToModel();
+            return Responder(await _servicio.GetByIdAsync(id));
         }
 
         // GET: api/rutas/1/viajes  -> qué unidad y qué chofer cubren la ruta en cada viaje
         [HttpGet("{id:int}/viajes")]
         public async Task<ActionResult<List<ViajeModel>>> GetViajesDeRuta(int id)
         {
-            return await _repositorio.GetViajesDeRutaAsync(id);
+            return Responder(await _servicio.GetViajesDeRutaAsync(id));
         }
 
         // POST: api/rutas
         [HttpPost]
-        public async Task<ActionResult<RutaModel>> PostRuta(RutaAddModel modelo)
+        public async Task<ActionResult<RutaModel>> PostRuta(RutaDtoAdd dto)
         {
-            var ruta = modelo.ToEntity();
-            await _repositorio.AddAsync(ruta);
+            var resultado = await _servicio.SaveAsync(dto);
+            if (!resultado.Success)
+                return Error(resultado);
 
-            return CreatedAtAction(nameof(GetRuta), new { id = ruta.Id }, ruta.ToModel());
+            return CreatedAtAction(nameof(GetRuta), new { id = resultado.Data!.Id }, resultado.Data);
         }
 
         // PUT: api/rutas/5
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<RutaModel>> PutRuta(int id, RutaUpdateModel modelo)
+        public async Task<ActionResult<RutaModel>> PutRuta(int id, RutaDtoUpdate dto)
         {
-            var ruta = await _repositorio.GetByIdAsync(id);
-            if (ruta == null)
-                return NoEncontrado($"No existe la ruta {id}.");
-
-            ruta.ActualizarDesde(modelo);
-            await _repositorio.UpdateAsync(ruta);
-
-            return ruta.ToModel();
+            return Responder(await _servicio.UpdateAsync(id, dto));
         }
 
         // DELETE: api/rutas/5  (borrado lógico)
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteRuta(int id)
         {
-            var ruta = await _repositorio.GetByIdAsync(id);
-            if (ruta == null)
-                return NoEncontrado($"No existe la ruta {id}.");
-
-            await _repositorio.RemoveAsync(ruta);
-            return NoContent();
+            return ResponderSinContenido(await _servicio.RemoveAsync(id));
         }
     }
 }
