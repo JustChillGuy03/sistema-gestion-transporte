@@ -91,9 +91,29 @@ namespace TransporteEmpresarial.Infrastructure.Repositories
 
         public async Task InscribirPasajeroAsync(int viajeId, int empleadoId)
         {
+            try
+            {
+                await InscribirEnTransaccionAsync(viajeId, empleadoId);
+            }
+            catch (Exception ex) when (EsBloqueoMutuo(ex))
+            {
+                // SQL Server canceló esta transacción para resolver un bloqueo mutuo con otra inscripción
+                _context.ChangeTracker.Clear();
+                throw new ViajeException(
+                    $"Otra inscripción del viaje {viajeId} se procesó al mismo tiempo. Intente de nuevo.");
+            }
+        }
+
+        private async Task InscribirEnTransaccionAsync(int viajeId, int empleadoId)
+        {
             // Serializable: si dos personas se inscriben al mismo tiempo en el último asiento,
             // una de las dos espera y luego ve el cupo lleno (no se sobrepasa la capacidad).
             await using var transaccion = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
+            // Bloquea la fila del viaje hasta terminar: otra inscripción en el mismo viaje espera su turno
+            // y luego ve el cupo actualizado (evita el bloqueo mutuo entre las dos transacciones).
+            await _context.Database.ExecuteSqlAsync(
+                $"SELECT Id FROM Viajes WITH (UPDLOCK, HOLDLOCK) WHERE Id = {viajeId}");
 
             var viaje = await Activos().Include(v => v.Vehiculo).FirstOrDefaultAsync(v => v.Id == viajeId)
                 ?? throw new ViajeException($"No existe el viaje {viajeId}.", TipoError.NoEncontrado);
@@ -250,5 +270,15 @@ namespace TransporteEmpresarial.Infrastructure.Repositories
         }
 
         private static string Horario(Viaje v) => $"{v.FechaHoraSalida:dd/MM/yyyy HH:mm} - {v.FechaHoraLlegada:HH:mm}";
+
+        // Error 1205 de SQL Server: la transacción fue elegida como víctima de un bloqueo mutuo (deadlock)
+        private static bool EsBloqueoMutuo(Exception? ex)
+        {
+            for (; ex != null; ex = ex.InnerException)
+                if (ex is Microsoft.Data.SqlClient.SqlException { Number: 1205 })
+                    return true;
+
+            return false;
+        }
     }
 }
