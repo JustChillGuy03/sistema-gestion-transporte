@@ -74,19 +74,6 @@ Los controladores solo llaman a los servicios. Cada operación del servicio sigu
 | | FechaHoraSalida | Obligatoria, futura y con máximo 12 meses de anticipación |
 | | Estado (al cambiarlo) | Obligatorio: EnCurso, Completado o Cancelado |
 
-Ejemplo de respuesta cuando fallan las validaciones (400):
-
-```json
-{
-  "title": "Datos no válidos",
-  "status": 400,
-  "detail": "Los datos del vehículo no son válidos. Revise los errores de cada campo.",
-  "errors": {
-    "Placa": ["La placa solo admite letras, números y guiones, y debe tener al menos una letra y un número (ejemplo: A123456)."],
-    "Anio": ["El campo 'Año' debe estar entre 1990 y 2027."]
-  }
-}
-```
 
 ## Modelo de dominio
 
