@@ -1,0 +1,263 @@
+# Pruebas de la API. Ejecutar con el perfil "http" (dotnet run) y la base de datos recién creada.
+@baseUrl = http://localhost:5180
+
+### ================= RUTAS =================
+
+GET {{baseUrl}}/api/rutas
+
+###
+GET {{baseUrl}}/api/rutas/1
+
+### Viajes de la ruta 1 con su vehículo y conductor (trazabilidad)
+GET {{baseUrl}}/api/rutas/1/viajes
+
+###
+# @name crearRuta
+POST {{baseUrl}}/api/rutas
+Content-Type: application/json
+
+{
+  "nombre": "Ruta Sur - Haina",
+  "origen": "Bajos de Haina, San Cristóbal",
+  "destino": "Sede Central, Av. Winston Churchill",
+  "paradasIntermedias": ["Km 9 Autopista Sánchez", "Av. Luperón"],
+  "duracionEstimadaMinutos": 50
+}
+
+### Nombre repetido -> 409
+POST {{baseUrl}}/api/rutas
+Content-Type: application/json
+
+{
+  "nombre": "Ruta Norte - Villa Mella",
+  "origen": "Otro origen",
+  "destino": "Otro destino",
+  "duracionEstimadaMinutos": 30
+}
+
+###
+PUT {{baseUrl}}/api/rutas/{{crearRuta.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "nombre": "Ruta Sur - Haina",
+  "origen": "Bajos de Haina, San Cristóbal",
+  "destino": "Sede Central, Av. Winston Churchill",
+  "paradasIntermedias": ["Km 9 Autopista Sánchez", "Av. Luperón", "Av. 27 de Febrero"],
+  "duracionEstimadaMinutos": 55
+}
+
+###
+DELETE {{baseUrl}}/api/rutas/{{crearRuta.response.body.$.id}}
+
+### ================= VEHÍCULOS =================
+
+GET {{baseUrl}}/api/vehiculos
+
+### Vehículos libres en un horario (excluye los ocupados y los que están en mantenimiento)
+GET {{baseUrl}}/api/vehiculos/disponibles?desde=2026-12-01T07:00&hasta=2026-12-01T08:00
+
+###
+# @name crearVehiculo
+POST {{baseUrl}}/api/vehiculos
+Content-Type: application/json
+
+{
+  "placa": "i000200",
+  "marca": "Toyota",
+  "modelo": "Coaster",
+  "anio": 2023,
+  "capacidad": 1
+}
+
+### Placa repetida -> 409
+POST {{baseUrl}}/api/vehiculos
+Content-Type: application/json
+
+{
+  "placa": "I000101",
+  "marca": "Kia",
+  "modelo": "Pregio",
+  "anio": 2020,
+  "capacidad": 12
+}
+
+### Datos inválidos (capacidad 0) -> 400
+POST {{baseUrl}}/api/vehiculos
+Content-Type: application/json
+
+{
+  "placa": "I000201",
+  "marca": "Kia",
+  "modelo": "Pregio",
+  "anio": 2020,
+  "capacidad": 0
+}
+
+### Poner en mantenimiento un vehículo con viajes programados -> 409
+PUT {{baseUrl}}/api/vehiculos/1
+Content-Type: application/json
+
+{
+  "placa": "I000101",
+  "marca": "Toyota",
+  "modelo": "Hiace",
+  "anio": 2022,
+  "capacidad": 14,
+  "estado": "EnMantenimiento"
+}
+
+### ================= EMPLEADOS =================
+
+GET {{baseUrl}}/api/empleados
+
+###
+GET {{baseUrl}}/api/empleados?tipo=Conductor
+
+### Historial de traslados del empleado 3
+GET {{baseUrl}}/api/empleados/3/historial
+
+###
+# @name crearPasajero
+POST {{baseUrl}}/api/empleados
+Content-Type: application/json
+
+{
+  "cedula": "001-0000007-7",
+  "nombre": "Pedro",
+  "apellido": "Ramírez",
+  "correo": "pramirez@empresa.com",
+  "tipo": "Pasajero",
+  "departamento": "Compras",
+  "puntoRecogida": "Km 9 Autopista Sánchez"
+}
+
+### Conductor sin licencia -> 400
+POST {{baseUrl}}/api/empleados
+Content-Type: application/json
+
+{
+  "cedula": "001-0000008-8",
+  "nombre": "José",
+  "apellido": "Díaz",
+  "tipo": "Conductor"
+}
+
+### Cédula repetida -> 409
+POST {{baseUrl}}/api/empleados
+Content-Type: application/json
+
+{
+  "cedula": "001-0000003-3",
+  "nombre": "Otro",
+  "apellido": "Empleado",
+  "tipo": "Pasajero"
+}
+
+### ================= VIAJES =================
+
+GET {{baseUrl}}/api/viajes
+
+###
+GET {{baseUrl}}/api/viajes?fecha=2026-12-01&estado=Programado
+
+###
+GET {{baseUrl}}/api/viajes/2
+
+###
+GET {{baseUrl}}/api/viajes/2/pasajeros
+
+### Programar un viaje con el vehículo de 1 asiento
+# @name crearViaje
+POST {{baseUrl}}/api/viajes
+Content-Type: application/json
+
+{
+  "rutaId": 3,
+  "vehiculoId": {{crearVehiculo.response.body.$.id}},
+  "conductorId": 2,
+  "fechaHoraSalida": "2027-02-01T17:30:00"
+}
+
+### Mismo conductor en un horario que se cruza -> 409
+POST {{baseUrl}}/api/viajes
+Content-Type: application/json
+
+{
+  "rutaId": 1,
+  "vehiculoId": 1,
+  "conductorId": 2,
+  "fechaHoraSalida": "2027-02-01T18:00:00"
+}
+
+### Vehículo en mantenimiento -> 409
+POST {{baseUrl}}/api/viajes
+Content-Type: application/json
+
+{
+  "rutaId": 1,
+  "vehiculoId": 3,
+  "conductorId": 1,
+  "fechaHoraSalida": "2027-02-02T07:00:00"
+}
+
+### Un pasajero no puede ser conductor -> 400
+POST {{baseUrl}}/api/viajes
+Content-Type: application/json
+
+{
+  "rutaId": 1,
+  "vehiculoId": 1,
+  "conductorId": 3,
+  "fechaHoraSalida": "2027-02-02T07:00:00"
+}
+
+### Inscribir un pasajero (ocupa el único asiento)
+POST {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}/pasajeros/{{crearPasajero.response.body.$.id}}
+
+### Segundo pasajero: el viaje está lleno -> 409
+POST {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}/pasajeros/6
+
+### Quitar al pasajero
+DELETE {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}/pasajeros/{{crearPasajero.response.body.$.id}}
+
+### Reprogramar el viaje
+PUT {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "rutaId": 3,
+  "vehiculoId": {{crearVehiculo.response.body.$.id}},
+  "conductorId": 2,
+  "fechaHoraSalida": "2027-02-01T19:00:00"
+}
+
+### Iniciar el viaje
+PATCH {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}/estado
+Content-Type: application/json
+
+{
+  "estado": "EnCurso"
+}
+
+### Cambio de estado no permitido (EnCurso -> Programado) -> 409
+PATCH {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}/estado
+Content-Type: application/json
+
+{
+  "estado": "Programado"
+}
+
+### Terminar el viaje
+PATCH {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}/estado
+Content-Type: application/json
+
+{
+  "estado": "Completado"
+}
+
+### Un viaje completado no se elimina -> 409
+DELETE {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}
+
+### Viaje inexistente -> 404
+GET {{baseUrl}}/api/viajes/999
