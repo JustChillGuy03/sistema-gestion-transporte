@@ -97,7 +97,7 @@ Las que dependen de los datos guardados las validan los repositorios, que lanzan
 - **Estados del viaje:** Programado → EnCurso → Completado, y Programado/EnCurso → Cancelado. Solo se reprograman viajes Programados.
 - **Integridad:** no se eliminan rutas, vehículos ni empleados con viajes vigentes; un vehículo con viajes pendientes no pasa a mantenimiento ni reduce su capacidad por debajo de los inscritos.
 
-## Endpoints
+## Rutas de la API
 
 | Método | Ruta | Descripción |
 |---|---|---|
