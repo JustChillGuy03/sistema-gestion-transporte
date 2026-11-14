@@ -21,17 +21,72 @@ TransporteEmpresarial.slnx
 │   ├── Context         TransporteContext, configuraciones Fluent API y datos iniciales
 │   ├── Core            BaseRepository<T>
 │   ├── Exceptions      RutaException, EmpleadoException, VehiculoException, ViajeException
-│   ├── Extensions      Mapeo entidad <-> DTO, consultas de viajes y registro de dependencias
+│   ├── Extensions      Mapeo entidad -> modelo de respuesta, consultas de viajes y registro de dependencias
 │   ├── Interfaces      IRutaRepository, IEmpleadoRepository, IVehiculoRepository, IViajeRepository
 │   ├── Migrations      Migración Inicial
-│   ├── Models          DTOs (Model de respuesta, AddModel y UpdateModel por entidad)
+│   ├── Models          Modelos de respuesta (RutaModel, EmpleadoModel, VehiculoModel, ViajeModel...)
 │   └── Repositories    RutaRepository, EmpleadoRepository, VehiculoRepository, ViajeRepository
-└── TransporteEmpresarial.API               Web API que consume las dos capas
+├── TransporteEmpresarial.Application       Capa de servicios (lógica de negocio y validaciones)
+│   ├── Contract        IRutaService, IEmpleadoService, IVehiculoService, IViajeService
+│   ├── Core            ServiceResult, IBaseService, BaseService, Validador, ServiceErrorType, NombreEntidad
+│   ├── Dtos            DtoBase y, por entidad (Ruta, Empleado, Vehiculo, Viaje): DtoBase, DtoAdd y DtoUpdate
+│   ├── Exceptions      ServiceException (hereda de Exception) y una por servicio
+│   └── Service         RutaService, EmpleadoService, VehiculoService, ViajeService
+└── TransporteEmpresarial.API               Web API que consume la capa de servicios
     ├── Controllers     Rutas, Empleados, Vehiculos, Viajes
-    └── Handlers        TransporteExceptionHandler (excepciones de negocio -> 400/404/409)
+    └── Handlers        TransporteExceptionHandler (respaldo: excepciones de negocio -> 400/404/409)
 ```
 
-Referencias: `API -> Infrastructure -> Domain`. La API registra la infraestructura con `AddInfrastructure(...)`.
+Referencias: `API -> Application -> Infrastructure -> Domain`. La API registra la infraestructura con `AddInfrastructure(...)` y los servicios en `Program.cs`.
+
+## Capa de servicios
+
+Los controladores solo llaman a los servicios. Cada operación del servicio sigue los mismos pasos (definidos en `BaseService`):
+
+1. **Normaliza** el DTO: quita espacios sobrantes, pone la placa y la licencia en mayúsculas, da formato a la cédula (`00100000011` -> `001-0000001-1`).
+2. **Valida cada campo** y reúne todos los errores, agrupados por campo.
+3. Convierte el DTO en entidad y llama al **repositorio**, que aplica las reglas que dependen de la base de datos.
+4. Devuelve un **`ServiceResult`** (`Success`, `Message`, `Data`, `ErrorType`, `Errors`). Si algo falla, el servicio captura la excepción (de validación, del repositorio o inesperada) y la convierte en un resultado fallido; la API lo traduce a 400, 404, 409 o 500.
+
+### Validaciones por campo
+
+| Entidad | Campo | Validación |
+|---|---|---|
+| Ruta | Nombre | Obligatorio, 3 a 100 caracteres (único) |
+| | Origen / Destino | Obligatorios, 3 a 150 caracteres, el destino distinto del origen |
+| | ParadasIntermedias | Opcional; máximo 20, cada una de 3 a 150 caracteres, sin vacías ni repetidas, distintas del origen y el destino |
+| | DuracionEstimadaMinutos | Obligatoria, de 5 a 600 |
+| Vehiculo | Placa | Obligatoria, 5 a 10 caracteres, letras, números y guiones, con al menos una letra y un número (única) |
+| | Marca | Obligatoria, 2 a 50 caracteres |
+| | Modelo | Obligatorio, 1 a 50 caracteres |
+| | Anio | Obligatorio, de 1990 al año próximo |
+| | Capacidad | Obligatoria, de 1 a 60 asientos |
+| | Estado (al actualizar) | Obligatorio: Disponible, EnMantenimiento o FueraDeServicio |
+| Empleado | Cedula | Obligatoria, formato `000-0000000-0` (única) |
+| | Nombre / Apellido | Obligatorios, 2 a 60 caracteres, solo letras, espacios, apóstrofes, puntos y guiones |
+| | Telefono | Opcional; 7 a 20 caracteres con 7 a 15 dígitos |
+| | Correo | Opcional; formato `usuario@dominio.com`, máximo 100 caracteres |
+| | Tipo (al registrar) | Obligatorio: Pasajero o Conductor (no cambia al actualizar) |
+| | Departamento | Opcional; 2 a 60 caracteres |
+| | PuntoRecogida | Obligatorio para pasajeros (3 a 150 caracteres); no se registra para conductores |
+| | LicenciaConducir | Obligatoria para conductores (5 a 20 caracteres, letras, números y guiones); no se registra para pasajeros |
+| Viaje | RutaId / VehiculoId / ConductorId | Obligatorios y mayores que cero |
+| | FechaHoraSalida | Obligatoria, futura y con máximo 12 meses de anticipación |
+| | Estado (al cambiarlo) | Obligatorio: EnCurso, Completado o Cancelado |
+
+Ejemplo de respuesta cuando fallan las validaciones (400):
+
+```json
+{
+  "title": "Datos no válidos",
+  "status": 400,
+  "detail": "Los datos del vehículo no son válidos. Revise los errores de cada campo.",
+  "errors": {
+    "Placa": ["La placa solo admite letras, números y guiones, y debe tener al menos una letra y un número (ejemplo: A123456)."],
+    "Anio": ["El campo 'Año' debe estar entre 1990 y 2027."]
+  }
+}
+```
 
 ## Modelo de dominio
 
@@ -47,7 +102,7 @@ Todas las entidades heredan de `BaseEntity`: el borrado es lógico (`Eliminado`)
 
 ## Reglas de negocio
 
-Las validan los repositorios y lanzan la excepción de su entidad:
+Las que dependen de los datos guardados las validan los repositorios, que lanzan la excepción de su entidad (el servicio la convierte en un `ServiceResult`):
 
 - **Capacidad:** no se inscribe un pasajero si el vehículo del viaje ya no tiene asientos libres. La inscripción corre en una transacción serializable para que dos solicitudes simultáneas no superen el cupo.
 - **Horarios:** un vehículo o un conductor no puede estar en dos viajes vigentes (Programado o EnCurso) que se crucen; un pasajero tampoco. La llegada se calcula con la duración de la ruta y el turno con la hora de salida.

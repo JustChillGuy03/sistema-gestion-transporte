@@ -24,6 +24,18 @@ Content-Type: application/json
   "duracionEstimadaMinutos": 50
 }
 
+### Validación por campo (nombre corto, destino igual al origen, parada repetida, duración fuera de rango) -> 400
+POST {{baseUrl}}/api/rutas
+Content-Type: application/json
+
+{
+  "nombre": "R1",
+  "origen": "Sede Central",
+  "destino": "sede central",
+  "paradasIntermedias": ["Av. Luperón", "av. luperón"],
+  "duracionEstimadaMinutos": 2
+}
+
 ### Nombre repetido -> 409
 POST {{baseUrl}}/api/rutas
 Content-Type: application/json
@@ -94,6 +106,16 @@ Content-Type: application/json
   "capacidad": 0
 }
 
+### Validación por campo (placa sin números, sin marca, año fuera de rango, sin capacidad) -> 400
+POST {{baseUrl}}/api/vehiculos
+Content-Type: application/json
+
+{
+  "placa": "ABCDEF",
+  "modelo": "Pregio",
+  "anio": 1985
+}
+
 ### Poner en mantenimiento un vehículo con viajes programados -> 409
 PUT {{baseUrl}}/api/vehiculos/1
 Content-Type: application/json
@@ -151,7 +173,21 @@ Content-Type: application/json
   "cedula": "001-0000003-3",
   "nombre": "Otro",
   "apellido": "Empleado",
-  "tipo": "Pasajero"
+  "tipo": "Pasajero",
+  "puntoRecogida": "Av. Luperón"
+}
+
+### Validación por campo (cédula, nombre con números, correo, pasajero sin punto de recogida y con licencia) -> 400
+POST {{baseUrl}}/api/empleados
+Content-Type: application/json
+
+{
+  "cedula": "001-123",
+  "nombre": "P3dro",
+  "apellido": "Ramírez",
+  "correo": "pramirez@",
+  "tipo": "Pasajero",
+  "licenciaConducir": "LIC-0099"
 }
 
 ### ================= VIAJES =================
@@ -201,6 +237,16 @@ Content-Type: application/json
   "fechaHoraSalida": "2027-02-02T07:00:00"
 }
 
+### Validación por campo (sin ruta, vehículo 0 y salida en el pasado) -> 400
+POST {{baseUrl}}/api/viajes
+Content-Type: application/json
+
+{
+  "vehiculoId": 0,
+  "conductorId": 1,
+  "fechaHoraSalida": "2020-01-01T07:00:00"
+}
+
 ### Un pasajero no puede ser conductor -> 400
 POST {{baseUrl}}/api/viajes
 Content-Type: application/json
@@ -240,7 +286,7 @@ Content-Type: application/json
   "estado": "EnCurso"
 }
 
-### Cambio de estado no permitido (EnCurso -> Programado) -> 409
+### Un viaje no vuelve a Programado -> 400
 PATCH {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}/estado
 Content-Type: application/json
 
@@ -254,6 +300,14 @@ Content-Type: application/json
 
 {
   "estado": "Completado"
+}
+
+### Cambio de estado no permitido (Completado -> Cancelado) -> 409
+PATCH {{baseUrl}}/api/viajes/{{crearViaje.response.body.$.id}}/estado
+Content-Type: application/json
+
+{
+  "estado": "Cancelado"
 }
 
 ### Un viaje completado no se elimina -> 409
