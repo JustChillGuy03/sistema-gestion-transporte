@@ -81,25 +81,6 @@ Las validan los repositorios y lanzan la excepción de su entidad:
 | POST | `/api/viajes/{id}/pasajeros/{empleadoId}` | Inscribir un pasajero |
 | DELETE | `/api/viajes/{id}/pasajeros/{empleadoId}` | Quitar un pasajero |
 
-Errores en formato ProblemDetails: **400** datos no válidos, **404** no existe, **409** regla de negocio no cumplida.
-
-## Cómo ejecutarlo
-
-Requisitos: .NET SDK 10 y SQL Server LocalDB (se instala con Visual Studio).
-
-```bash
-git clone -b develop https://github.com/JustChillGuy03/sistema-gestion-transporte.git
-cd sistema-gestion-transporte
-dotnet run --project TransporteEmpresarial.API --launch-profile http
-```
-
-Al iniciar en modo Development se aplican las migraciones y se crea la base de datos `TransporteEmpresarialDB` con datos de ejemplo (3 rutas, 3 vehículos, 6 empleados y 3 viajes).
-
-- Swagger UI: http://localhost:5180/swagger
-- Documento OpenAPI: http://localhost:5180/openapi/v1.json
-- Pruebas listas para ejecutar: `TransporteEmpresarial.API/TransporteEmpresarial.API.http` (Visual Studio o VS Code con REST Client)
-
-La cadena de conexión está en `TransporteEmpresarial.API/appsettings.json`.
 
 ### Migraciones
 
